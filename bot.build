@@ -1,0 +1,27 @@
+<?xml version="1.0"?>
+
+<project name="Twitterbot" default="bot" basedir=".">
+	<description>
+		NAnt build file for the C# Twitterbot
+	</description>
+		
+	<property name="debug" value="true" overwrite="false" />
+	<property name="executable" value="Twitterbot.exe"/>
+	<tstamp property="build.date" pattern="yyyyMMdd" verbose="true" />
+	
+	<target name="bot" description="Default build target">
+		<csc target="exe" output="${executable}">
+			<references>
+				<include name="RSS.NET.dll"/>
+			</references>
+			
+			<sources>
+				<include name="Twitterbot.cs"/>
+			</sources>
+		</csc>
+	</target>
+
+	<target name="clean" description="Clean the Twitterbot">
+		<delete file="${executable}" failonerror="true"/>
+	</target>
+</project>

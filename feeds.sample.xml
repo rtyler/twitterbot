@@ -1,0 +1,5 @@
+<feeds>
+	<!-- To prevent Xml parsing errors in C#, convert all & -> &amp; -->
+	<feed name="Feed Name" url="" twitter="twitterusername" password="twitterpassword"/>
+	<feed name="Feed Name Dos" url="" twitter="twitterusername" password="twitterpassword"/>
+</feeds>
