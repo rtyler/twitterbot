@@ -11,22 +11,40 @@ public class Twitterbot
 {
 	public const string TwitterUrl = "http://twitter.com/statuses/update.xml";
 	public const string TinyUrl = "http://tinyurl.com/api-create.php?url=";
-	public const int TwitterMax = 2; // maximum number of feed updates to pull
+	public const int TwitterMax = 3; // maximum number of feed updates to pull
+	public const int HistoryMax	= 10; // maximum number of backlogged feed items to store
 
 	public static void Main(string[] args)
 	{
+		bool slowAtNight = false;
 		
 		if ( (args.Length < 3) || (args.Length > 4) )
 		{
-			Console.WriteLine("Twitterbot.exe FEEDFILE [--loop <minutes to sleep>]");
+			Console.WriteLine("Twitterbot.exe <feed file> <minutes to sleep> <night time slowdown>");
+			Console.WriteLine("Usage:");
+			Console.WriteLine("mono Twitterbot.exe feeds.xml 30 yes");
+			
+			Console.WriteLine("");
+			Console.WriteLine("Enabling night time slowdown will cause the Twitterbot to double its");
+			Console.WriteLine("sleep interval between the hours of 12:00 a.m. and 6 a.m."); 
 			return;
 		}
 	
 		string feedFile = args[0];
-		int sleep = Convert.ToInt32(args[2]);
+		int sleep = Convert.ToInt32(args[1]);
+		
+		if ( (args[2] == "yes") || (args[2] == "y") )
+			slowAtNight = true;
+		
 		List<Feed> feedList = new List<Feed>();
 			
 		Console.WriteLine("Reading {0} and looping {1} minutes", feedFile, sleep);
+		
+		/*
+		 *	The following block is quite basic, open the feed xml file and
+		 *	generate a List of Feed objects.
+		 */
+		////////////////////////////////////////////////////////////////////////
 		XmlDocument feedXml = new XmlDocument();
 		XmlNodeList feeds;
 		FileStream stream;
@@ -37,7 +55,8 @@ public class Twitterbot
 		}
 		else
 		{
-			throw new Exception(String.Format("File {0} not found", feedFile));
+			Console.WriteLine("File {0} not found", feedFile);
+			return;
 		}
 
 		feedXml.Load(stream);
@@ -52,17 +71,28 @@ public class Twitterbot
 			
 			feedList.Add(new Feed(name, url, twitter, pass));
 		}
+		
+		stream.Close();
+		////////////////////////////////////////////////////////////////////////
+		////////////////////////////////////////////////////////////////////////
 
+
+		/* 
+		 *	Our core runloop will iterate every 'sleep' minutes, first udpating
+		 *	each one of our feeds, checking for duplicates, posting new entries
+		 *	to the Feed's twitter account, and finally backlogging entries
+		 */
+		////////////////////////////////////////////////////////////////////////
 		do
 		{
 			foreach (Feed feed in feedList)
 			{
 				Console.WriteLine("Reading {0}", feed.Name);
 				feed.Rss = RssFeed.Read(feed.Url);
+				List<RssItem> tempList = new List<RssItem>();
 
 				foreach (RssChannel channel in feed.Rss.Channels)
 				{
-					List<RssItem> tempList = new List<RssItem>();
 					int count = 0;
 					
 					foreach (RssItem item in channel.Items)
@@ -75,13 +105,17 @@ public class Twitterbot
 							bool found = false;
 							foreach (RssItem lastItem in feed.LastItems)
 							{
-									if (item.Title == lastItem.Title)
-										found = true;
+								if (item.Title == lastItem.Title)
+								{
+									found = true;
+									break;
+								}
 							}
 							
 							if (!found)
+							{
 								tempList.Add(item);
-							
+							}
 						}
 						else
 						{
@@ -91,32 +125,46 @@ public class Twitterbot
 						++count;
 					}
 					
-					feed.LastItems.Clear();
-					feed.LastItems.AddRange(tempList);
 					break; // on the off-chance there is more than one channel
 				}
 
-				foreach (RssItem item in feed.LastItems)
+				foreach (RssItem item in tempList)
 				{
 					// Prepare to post to twitter
 					string post = PrepareTwitterStatus(item);
-					Console.WriteLine("Preparing post: {0}", post);
+					Console.WriteLine("[{0}] Preparing post: {1}", DateTime.Now, post);
 					
 					if (!PostToTwitter(feed, post))
 					{
-						Console.WriteLine("Failed to post to twitter!");
+						Console.WriteLine("[{0}] Failed to post to twitter!", DateTime.Now);
 					}
 
 					// Patiently count to five to reduce spammage
 					Thread.Sleep(5000);
 				}
+			
+				// Add our added items to the backlog list
+				feed.AddItems(tempList);
 			}
 			
 			Console.WriteLine("--------");
 		
-			Thread.Sleep((sleep * 1000)*60);
+			// If we're slowing down at night, check to see if we're between 12:00 and 6:00 exclusive
+			if ( (slowAtNight) && (DateTime.Now.Hour >= 0) && (DateTime.Now.Hour < 6) )
+			{
+				int slowSleep = (sleep * 2);
+				Console.WriteLine("Doubling interval of {0} minute(s) to {1} minute(s) for night time hours", sleep, slowSleep);
+				Thread.Sleep((slowSleep * 1000)*60);
+			}
+			else			
+			{
+				Thread.Sleep((sleep * 1000)*60);
+			}
 		} while (true);
+		////////////////////////////////////////////////////////////////////////
+		////////////////////////////////////////////////////////////////////////
 	}
+	
 	
 	public static bool PostToTwitter(Feed feed, string post)
 	{
@@ -159,6 +207,7 @@ public class Twitterbot
 
 		return true;
 	}
+
 
 	public static string PrepareTwitterStatus(RssItem item)
 	{
@@ -205,6 +254,7 @@ public class Twitterbot
 		return postString;
 	}
 
+
 	public static string FetchTinyUrl(Uri longUrl)
 	{
 		string tinyurl;
@@ -246,6 +296,7 @@ public class Twitterbot
 		
 		return tinyurl;
 	}
+	
 
 	public static HttpWebRequest GenerateGetOrPostRequest(string uriString, string method, string postData, string user, string pass)
     {
@@ -281,6 +332,7 @@ public class Twitterbot
     }
 
 }
+
 		
 public class Feed
 {
@@ -298,5 +350,20 @@ public class Feed
 		TwitterName = twitter;
 		TwitterPass = pass;
 		LastItems = new List<RssItem>(10);
+	}
+	
+	public void AddItems(List<RssItem> items)
+	{
+		// If we've exceeded our max, remove items.Count from the front of the list
+		// and add items to the end of the list
+		if (LastItems.Count > Twitterbot.HistoryMax)
+		{
+			for (int i = 0; i < items.Count; ++i)
+			{
+				LastItems.RemoveAt(i);
+			}
+		}	
+			
+		LastItems.AddRange(items);
 	}
 }
