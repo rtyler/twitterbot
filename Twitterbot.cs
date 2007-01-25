@@ -88,7 +88,17 @@ public class Twitterbot
 			foreach (Feed feed in feedList)
 			{
 				Console.WriteLine("Reading {0}", feed.Name);
-				feed.Rss = RssFeed.Read(feed.Url);
+				try
+				{
+					feed.Rss = RssFeed.Read(feed.Url);
+				}
+				catch (Exception ex)
+				{
+					Console.WriteLine("RSS.NET received an exception!{0}{1}", 
+						Environment.NewLine, ex);
+					continue;
+				}
+
 				List<RssItem> tempList = new List<RssItem>();
 
 				foreach (RssChannel channel in feed.Rss.Channels)
