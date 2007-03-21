@@ -178,13 +178,14 @@ public class Twitterbot
 	
 	public static bool PostToTwitter(Feed feed, string post)
 	{
-		HttpWebRequest request = GenerateGetOrPostRequest(TwitterUrl, "POST", string.Format("status={0}", post), 
-											feed.TwitterName, feed.TwitterPass);
+		HttpWebRequest request = null;
 		string returnString = string.Empty;			
 		HttpWebResponse response = null;
 
 		try
 		{
+			request = GenerateGetOrPostRequest(TwitterUrl, "POST", string.Format("status={0}", post), 
+											feed.TwitterName, feed.TwitterPass);
 			response = (HttpWebResponse)request.GetResponse();
 			Stream responseStream = response.GetResponseStream( );
 			StreamReader reader = new StreamReader(responseStream,Encoding.UTF8);
@@ -315,6 +316,7 @@ public class Twitterbot
 	
 		HttpWebRequest httpRequest = (HttpWebRequest)WebRequest.Create(uriString);
 		httpRequest.Method = method;
+		httpRequest.UserAgent = "Twitterbot";
 
 		if (method.ToUpper() =="POST")
 		{
