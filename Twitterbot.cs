@@ -4,13 +4,15 @@ using System.IO;
 using System.Net;
 using System.Text;
 using System.Threading;
+using System.Web;
+using System.Web.Script.Serialization;
 using System.Xml;
 using Rss;
 
 public class Twitterbot
 {
 	public const string TwitterUrl = "http://twitter.com/statuses/update.xml";
-	public const string TinyUrl = "http://tinyurl.com/api-create.php?url=";
+	public const string TinyUrl = "http://urlenco.de/PostJSON.aspx?encode=";
 	public const int TwitterMax = 3; // maximum number of feed updates to pull
 	public const int HistoryMax	= 10; // maximum number of backlogged feed items to store
 
@@ -260,6 +262,7 @@ public class Twitterbot
 			postString = titleString;
 		}
 
+		Console.WriteLine(item.Link);
 		postString += string.Format(": {0}", FetchTinyUrl(item.Link));
 		
 		return postString;
@@ -269,8 +272,9 @@ public class Twitterbot
 	public static string FetchTinyUrl(Uri longUrl)
 	{
 		string tinyurl;
+		string target_url = HttpUtility.UrlEncode(longUrl.ToString());
 
-		HttpWebRequest request = (HttpWebRequest)WebRequest.Create(string.Format("{0}{1}", TinyUrl, longUrl.ToString()));
+		HttpWebRequest request = (HttpWebRequest)WebRequest.Create(string.Format("{0}{1}", TinyUrl, target_url));
 		HttpWebResponse response = null;
 		
 		try
@@ -305,7 +309,9 @@ public class Twitterbot
 		       response.Close();
 	   }
 		
-		return tinyurl;
+		JavaScriptSerializer serializer = new JavaScriptSerializer();
+		Dictionary<string, string> results = serializer.Deserialize<Dictionary<string, string>>(tinyurl);
+		return results["encoded"];
 	}
 	
 
