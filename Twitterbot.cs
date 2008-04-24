@@ -92,7 +92,8 @@ public class Twitterbot
 				Console.WriteLine("Reading {0}", feed.Name);
 				try
 				{
-					feed.Rss = RssFeed.Read(feed.Url);
+					HttpWebRequest rssRequest = GenerateGetOrPostRequest(feed.Url, "GET", null, null, null); 
+					feed.Rss = RssFeed.Read(rssRequest);
 				}
 				catch (Exception ex)
 				{
@@ -111,7 +112,6 @@ public class Twitterbot
 					{			
 						if (count == TwitterMax)
 							break;
-										
 						if (feed.LastItems.Count > 0)
 						{
 							bool found = false;
@@ -125,18 +125,14 @@ public class Twitterbot
 							}
 							
 							if (!found)
-							{
 								tempList.Add(item);
-							}
 						}
 						else
 						{
 							tempList.Add(item);
 						}
-						
 						++count;
 					}
-					
 					break; // on the off-chance there is more than one channel
 				}
 
@@ -147,18 +143,14 @@ public class Twitterbot
 					Console.WriteLine("[{0}] Preparing post: {1}", DateTime.Now, post);
 					
 					if (!PostToTwitter(feed, post))
-					{
 						Console.WriteLine("[{0}] Failed to post to twitter!", DateTime.Now);
-					}
 
 					// Patiently count to five to reduce spammage
 					Thread.Sleep(5000);
 				}
-			
 				// Add our added items to the backlog list
 				feed.AddItems(tempList);
 			}
-			
 			Console.WriteLine("--------");
 		
 			// If we're slowing down at night, check to see if we're between 12:00 and 6:00 exclusive
@@ -322,7 +314,7 @@ public class Twitterbot
 	
 		HttpWebRequest httpRequest = (HttpWebRequest)WebRequest.Create(uriString);
 		httpRequest.Method = method;
-		httpRequest.UserAgent = "Twitterbot";
+		httpRequest.UserAgent = "Mozilla/5.0 (X11; U; Linux x86_64; en-US; rv:1.8.1.13)";
 
 		if (method.ToUpper() =="POST")
 		{
