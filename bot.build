@@ -13,6 +13,7 @@
 		<csc target="exe" output="${executable}">
 			<references>
 				<include name="RSS.NET.dll"/>
+				<include name="Atom.NET.dll"/>
 				<include name="System.Web.dll"/>
 				<include name="System.Web.Extensions.dll"/>
 			</references>
