@@ -19,6 +19,12 @@ public class Twitterbot
 	public static void Main(string[] args)
 	{
 		bool slowAtNight = false;
+
+		/*
+		 * Workaround for the 417 error found here:
+		 *	http://groups.google.com/group/twitter-development-talk/browse_thread/thread/7c67ff1a2407dee7
+		 */
+		System.Net.ServicePointManager.Expect100Continue = false;
 		
 		if ( (args.Length < 3) || (args.Length > 4) )
 		{
